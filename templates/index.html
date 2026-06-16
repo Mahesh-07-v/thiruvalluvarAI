@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>thiruvallurAI - Chatbot & RAG Retrieval</title>
+    <!-- Google Fonts: Cinzel for classical headers, Inter for readable UI text -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0c0c0e;
+            --container-bg: #141416;
+            --border-color: #262629;
+            --accent-gold: #dfb76c;
+            --accent-gold-hover: #f1cf8e;
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --user-bubble: #dfb76c;
+            --bot-bubble: #1c1c1f;
+            --sans-font: 'Inter', sans-serif;
+            --serif-font: 'Cinzel', serif;
+            --transition-speed: 0.3s;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            font-family: var(--sans-font);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Top Header Navigation */
+        header {
+            background-color: var(--container-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+        }
+
+        header h1 {
+            font-family: var(--serif-font);
+            font-size: 1.5rem;
+            color: var(--accent-gold);
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        header h1 span {
+            font-size: 0.8rem;
+            border: 1px solid var(--accent-gold);
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .pill {
+            background-color: rgba(223, 183, 108, 0.1);
+            color: var(--accent-gold);
+            border: 1px solid rgba(223, 183, 108, 0.2);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: 500;
+        }
+
+        /* Main Content Workspace Layout */
+        .workspace {
+            flex: 1;
+            display: flex;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Chat Container (Left side) */
+        .chat-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border-color);
+            background-color: var(--bg-color);
+            height: 100%;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            scroll-behavior: smooth;
+        }
+
+        /* Message Bubbles styling */
+        .message-row {
+            display: flex;
+            width: 100%;
+        }
+
+        .message-row.user {
+            justify-content: flex-end;
+        }
+
+        .message-row.bot {
+            justify-content: flex-start;
+        }
+
+        .message-container {
+            position: relative;
+            max-width: 70%;
+        }
+
+        .bubble-copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(28, 28, 31, 0.8);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            border-radius: 4px;
+            width: 26px;
+            height: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+            z-index: 2;
+        }
+
+        .message-container:hover .bubble-copy-btn {
+            opacity: 1;
+        }
+
+        .bubble-copy-btn:hover {
+            color: var(--accent-gold);
+            border-color: var(--accent-gold);
+        }
+
+        .bubble-copy-btn svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .message {
+            width: 100%;
+            padding: 1rem 1.25rem;
+            border-radius: 12px;
+            line-height: 1.6;
+            font-size: 0.95rem;
+            word-wrap: break-word;
+            animation: fadeInUp 0.4s ease forwards;
+            position: relative;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message-row.user .message {
+            background-color: var(--user-bubble);
+            color: #0c0c0e;
+            border-bottom-right-radius: 2px;
+            font-weight: 500;
+        }
+
+        .message-row.bot .message {
+            background-color: var(--bot-bubble);
+            color: var(--text-primary);
+            border-bottom-left-radius: 2px;
+            border: 1px solid var(--border-color);
+            white-space: pre-line;
+        }
+
+        /* Typing Indicator Animation */
+        .typing-indicator {
+            display: flex;
+            gap: 5px;
+            padding: 5px 10px;
+            align-items: center;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--text-secondary);
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1.0); }
+        }
+
+        /* Welcome Centered Hero Overlay */
+        .welcome-overlay {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            height: 100%;
+            max-width: 650px;
+            margin: 0 auto;
+            padding: 2rem;
+            animation: fadeInUp 0.8s ease forwards;
+        }
+
+        .welcome-avatar {
+            width: 200px;
+            height: auto;
+            margin-bottom: 1.5rem;
+            filter: drop-shadow(0 8px 16px rgba(223, 183, 108, 0.3));
+            animation: floatAvatar 5s ease-in-out infinite;
+        }
+
+        @keyframes floatAvatar {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+            100% { transform: translateY(0px); }
+        }
+        
+        .welcome-overlay h2 {
+            font-family: var(--serif-font);
+            font-size: 2.2rem;
+            color: var(--accent-gold);
+            margin-bottom: 1.5rem;
+            letter-spacing: 1px;
+            line-height: 1.3;
+        }
+        
+        .welcome-overlay p {
+            color: var(--text-secondary);
+            font-size: 1.05rem;
+            line-height: 1.8;
+            margin-bottom: 2rem;
+        }
+        
+        .welcome-overlay .examples {
+            background-color: var(--container-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.2rem 1.8rem;
+            font-size: 0.95rem;
+            color: var(--text-primary);
+            line-height: 1.6;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        }
+        
+        .welcome-overlay .examples em {
+            color: var(--accent-gold);
+            font-style: normal;
+            font-weight: 500;
+        }
+
+        /* Input Form at bottom */
+        .chat-input-container {
+            padding: 1.5rem 2rem;
+            border-top: 1px solid var(--border-color);
+            background-color: var(--container-bg);
+        }
+
+        .chat-form {
+            display: flex;
+            gap: 15px;
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 30px;
+            padding: 6px 6px 6px 1.5rem;
+            align-items: center;
+            transition: border-color var(--transition-speed);
+            max-width: 800px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .chat-form:focus-within {
+            border-color: var(--accent-gold);
+        }
+
+        .chat-form input {
+            flex: 1;
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            font-family: var(--sans-font);
+            outline: none;
+        }
+
+        .chat-form input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .chat-form button {
+            background-color: var(--accent-gold);
+            color: #0c0c0e;
+            border: none;
+            outline: none;
+            padding: 10px 24px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: background-color var(--transition-speed), transform var(--transition-speed);
+        }
+
+        .chat-form button:hover {
+            background-color: var(--accent-gold-hover);
+        }
+
+        .chat-form button:active {
+            transform: scale(0.97);
+        }
+
+        /* Kural Manuscript Panel (Right side) */
+        .kural-panel {
+            width: 450px;
+            background-color: var(--container-bg);
+            display: flex;
+            flex-direction: column;
+            padding: 2.5rem;
+            overflow-y: auto;
+            transition: transform var(--transition-speed) ease;
+        }
+
+        .panel-title {
+            font-family: var(--serif-font);
+            font-size: 1.25rem;
+            color: var(--accent-gold);
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.75rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Palm Leaf Card styling */
+        .palm-leaf-card {
+            background: linear-gradient(135deg, #1b1916 0%, #131210 100%);
+            border: 2px solid var(--accent-gold);
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 2rem;
+            display: none; /* Displayed only when a kural matches */
+            animation: cardUnfold 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes cardUnfold {
+            from {
+                opacity: 0;
+                transform: scaleY(0.8) translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: scaleY(1) translateY(0);
+            }
+        }
+
+        .palm-leaf-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border: 1px solid rgba(223, 183, 108, 0.15);
+            margin: 6px;
+            border-radius: 8px;
+            pointer-events: none;
+        }
+
+        .kural-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            color: var(--accent-gold);
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+        }
+
+        .tamil-verse {
+            font-size: 1.35rem;
+            font-weight: 500;
+            line-height: 2;
+            color: #ffffff;
+            margin-bottom: 1.5rem;
+            text-align: center;
+            font-family: 'Inter', sans-serif;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .tamil-verse p {
+            margin-bottom: 0.5rem;
+        }
+
+        .section-label {
+            font-size: 0.8rem;
+            color: var(--accent-gold);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .explanation-block {
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px dashed rgba(223, 183, 108, 0.2);
+        }
+
+        .meaning-text {
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: #d1d5db;
+        }
+
+        .copy-card-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            background: none;
+            border: 1px solid rgba(223, 183, 108, 0.4);
+            color: var(--accent-gold);
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 1.5rem;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all var(--transition-speed) ease;
+        }
+
+        .copy-card-btn:hover {
+            background-color: rgba(223, 183, 108, 0.1);
+            border-color: var(--accent-gold);
+            color: #ffffff;
+        }
+
+        .copy-card-btn:active {
+            transform: scale(0.98);
+        }
+
+        .copy-card-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .placeholder-message {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 60%;
+            color: var(--text-secondary);
+            text-align: center;
+            padding: 2rem;
+            gap: 15px;
+        }
+
+        .placeholder-message svg {
+            width: 64px;
+            height: 64px;
+            stroke: var(--border-color);
+        }
+
+        /* Scrollbar customizing */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.1);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-gold);
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .workspace {
+                flex-direction: column;
+            }
+            .kural-panel {
+                width: 100%;
+                height: 350px;
+                border-left: none;
+                border-top: 1px solid var(--border-color);
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>thiruvallurAI <span>RAG</span></h1>
+        <div class="header-controls">
+            <span>Database: <strong>1,330 Kurals</strong></span>
+        </div>
+    </header>
+
+    <div class="workspace">
+        <!-- Chat Panel -->
+        <div class="chat-panel">
+            <div class="chat-messages" id="chat-messages">
+                <!-- Welcome Centered Hero Overlay -->
+                <div class="welcome-overlay" id="welcome-overlay">
+                    <img src="/static/thiruvalluvar.png" alt="Saint Thiruvalluvar" class="welcome-avatar">
+                    <h2>Vanakkam!<br>I am thiruvallurAI!</h2>
+                    <p>I contain the complete database of all 1,330 couplets of the holy Thirukkural. Ask me for a verse on any topic, or type a specific verse number!</p>
+                    <div class="examples">
+                        Try: <em>"tell me a kural about god"</em>, <em>"education"</em>, or <em>"kural 391"</em>.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input area -->
+            <div class="chat-input-container">
+                <form class="chat-form" id="chat-form">
+                    <input type="text" id="user-input" placeholder="Ask thiruvallurAI... (e.g., kural about anger)" autocomplete="off">
+                    <button type="submit">Send</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Detail Sidepanel (Retrieved Kural metadata) -->
+        <div class="kural-panel" id="kural-panel">
+            <h2 class="panel-title">Retrieved Couplet</h2>
+            
+            <div class="placeholder-message" id="panel-placeholder">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.754 18 18.168 18.477 16.5 18c-1.747 0-3.332.477-4.5 1.253"></path>
+                </svg>
+                <p>When you ask a question, the corresponding authentic verse will be displayed here directly from the database.</p>
+            </div>
+
+            <!-- Authentic Kural Card -->
+            <div class="palm-leaf-card" id="kural-card">
+                <div class="kural-card-header">
+                    <span id="kural-number">Kural #1</span>
+                    <span id="kural-topic">Virtue</span>
+                </div>
+                
+                <div class="tamil-verse">
+                    <p id="kural-line1">அகர முதல எழுத்தெல்லாம் ஆதி</p>
+                    <p id="kural-line2">பகவன் முதற்றே உலகு.</p>
+                </div>
+                
+                <div class="explanation-block">
+                    <span class="section-label">Tamil Meaning</span>
+                    <p class="meaning-text" id="kural-meaning-tamil">எழுத்துக்கள் எல்லாம் அகரத்தை அடிப்படையாக கொண்டிருக்கின்றன. அதுபோல உலகம் கடவுளை அடிப்படையாக கொண்டிருக்கிறது.</p>
+                </div>
+
+                <div class="explanation-block">
+                    <span class="section-label">English Meaning</span>
+                    <p class="meaning-text" id="kural-meaning-english">As the letter A is the first of all letters, so the eternal God is first in the world.</p>
+                </div>
+
+                <button class="copy-card-btn" id="copy-card-btn">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2v3m0 4H3m0 0l3-3m-3 3l3 3"></path>
+                    </svg>
+                    <span>Copy Couplet</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const chatForm = document.getElementById('chat-form');
+        const userInput = document.getElementById('user-input');
+        const chatMessages = document.getElementById('chat-messages');
+        const panelPlaceholder = document.getElementById('panel-placeholder');
+        const kuralCard = document.getElementById('kural-card');
+        
+        const kuralNumber = document.getElementById('kural-number');
+        const kuralTopic = document.getElementById('kural-topic');
+        const kuralLine1 = document.getElementById('kural-line1');
+        const kuralLine2 = document.getElementById('kural-line2');
+        const kuralMeaningTamil = document.getElementById('kural-meaning-tamil');
+        const kuralMeaningEnglish = document.getElementById('kural-meaning-english');
+
+        // Conversational state variables
+        let shownKurals = [];
+        let lastQuery = '';
+
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const message = userInput.value.trim();
+            if (!message) return;
+
+            // Remove welcome overlay on first interaction
+            const welcomeOverlay = document.getElementById('welcome-overlay');
+            if (welcomeOverlay) {
+                welcomeOverlay.remove();
+            }
+
+            // Append User Message
+            appendMessage(message, 'user');
+            userInput.value = '';
+
+            // Append Bot Typing Indicator
+            const typingDiv = appendTypingIndicator();
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        message: message,
+                        shown_kurals: shownKurals,
+                        last_query: lastQuery
+                    }),
+                });
+
+                const data = await response.json();
+                
+                // Remove Typing Indicator
+                typingDiv.remove();
+
+                if (data.error) {
+                    appendMessage(`Error: ${data.error}`, 'bot');
+                } else {
+                    // Append Bot Answer
+                    appendMessage(data.response, 'bot');
+                    
+                    // Update state from response
+                    if (data.shown_kurals) {
+                        shownKurals = data.shown_kurals;
+                    }
+                    if (data.last_query) {
+                        lastQuery = data.last_query;
+                    }
+                    
+                    // Update side panel if Kural data returned
+                    if (data.kural) {
+                        panelPlaceholder.style.display = 'none';
+                        kuralCard.style.display = 'block';
+                        
+                        kuralNumber.innerText = `Kural #${data.kural.number}`;
+                        kuralTopic.innerText = data.kural.topic || `Verse ${data.kural.number}`;
+                        kuralLine1.innerText = data.kural.line1;
+                        kuralLine2.innerText = data.kural.line2;
+                        kuralMeaningTamil.innerText = data.kural.mv || data.kural.sp || "N/A";
+                        kuralMeaningEnglish.innerText = data.kural.explanation;
+                    }
+                }
+
+            } catch (err) {
+                typingDiv.remove();
+                appendMessage("Sorry, I encountered an error communicating with the server. Make sure the Flask server is running.", "bot");
+            }
+        });
+
+        // Bind copy button for Palm Leaf card
+        const copyCardBtn = document.getElementById('copy-card-btn');
+        copyCardBtn.addEventListener('click', () => {
+            const line1 = document.getElementById('kural-line1').innerText;
+            const line2 = document.getElementById('kural-line2').innerText;
+            const meaningTamil = document.getElementById('kural-meaning-tamil').innerText;
+            const meaningEnglish = document.getElementById('kural-meaning-english').innerText;
+            const num = document.getElementById('kural-number').innerText;
+            
+            const textToCopy = `${num}\n${line1}\n${line2}\n\nTamil Meaning:\n${meaningTamil}\n\nEnglish Meaning:\n${meaningEnglish}`;
+            
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                const btnText = copyCardBtn.querySelector('span');
+                const originalText = btnText.innerText;
+                btnText.innerText = 'Copied!';
+                copyCardBtn.style.borderColor = '#4ade80';
+                copyCardBtn.style.color = '#4ade80';
+                
+                setTimeout(() => {
+                    btnText.innerText = originalText;
+                    copyCardBtn.style.borderColor = 'rgba(223, 183, 108, 0.4)';
+                    copyCardBtn.style.color = 'var(--accent-gold)';
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy text: ', err);
+            });
+        });
+
+        function appendMessage(text, sender) {
+            const row = document.createElement('div');
+            row.classList.add('message-row', sender);
+            
+            const container = document.createElement('div');
+            container.classList.add('message-container');
+
+            const bubble = document.createElement('div');
+            bubble.classList.add('message');
+            bubble.innerText = text;
+            
+            container.appendChild(bubble);
+
+            if (sender === 'bot') {
+                const copyBtn = document.createElement('button');
+                copyBtn.classList.add('bubble-copy-btn');
+                copyBtn.innerHTML = `
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2v3m0 4H3m0 0l3-3m-3 3l3 3"></path>
+                    </svg>
+                `;
+                copyBtn.addEventListener('click', () => {
+                    navigator.clipboard.writeText(text).then(() => {
+                        copyBtn.style.color = '#4ade80';
+                        copyBtn.style.borderColor = '#4ade80';
+                        setTimeout(() => {
+                            copyBtn.style.color = 'var(--text-secondary)';
+                            copyBtn.style.borderColor = 'var(--border-color)';
+                        }, 2000);
+                    });
+                });
+                container.appendChild(copyBtn);
+            }
+
+            row.appendChild(container);
+            chatMessages.appendChild(row);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function appendTypingIndicator() {
+            const row = document.createElement('div');
+            row.classList.add('message-row', 'bot');
+            
+            const bubble = document.createElement('div');
+            bubble.classList.add('message');
+            
+            const indicator = document.createElement('div');
+            indicator.classList.add('typing-indicator');
+            
+            for (let i = 0; i < 3; i++) {
+                const dot = document.createElement('div');
+                dot.classList.add('typing-dot');
+                indicator.appendChild(dot);
+            }
+            
+            bubble.appendChild(indicator);
+            row.appendChild(bubble);
+            chatMessages.appendChild(row);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            return row;
+        }
+    </script>
+</body>
+</html>
