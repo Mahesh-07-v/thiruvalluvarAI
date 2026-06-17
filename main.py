@@ -124,7 +124,7 @@ def chat():
 def run_cli():
     global ai
     print("==================================================")
-    print("                 thiruvallurAI                  ")
+    print("                Thiruvalluvar.AI                  ")
     print("==================================================")
     
     if not api_key:
@@ -219,6 +219,6 @@ if __name__ == "__main__":
     if "--cli" in sys.argv:
         run_cli()
     else:
-        print("Starting thiruvallurAI Web Server...")
+        print("Starting Thiruvalluvar.AI Web Server...")
         print("Open http://127.0.0.1:5000 in your browser to experience the chatbot.")
         app.run(debug=True, port=5000)

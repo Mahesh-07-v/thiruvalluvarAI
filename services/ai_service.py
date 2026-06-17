@@ -13,7 +13,7 @@ class AIService:
 
     def explain_kural(self, kural: Kural, user_query: str) -> str:
         prompt = f"""
-You are THIRUVALLUVAR AI, an expert on the ancient Tamil classic Thirukkural.
+You are Thiruvalluvar.AI, an expert on the ancient Tamil classic Thirukkural.
 The user asked: "{user_query}".
 You are provided with this authentic, verified Kural from our database:
 
